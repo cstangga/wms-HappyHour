@@ -103,14 +103,14 @@ public class InboundManagementService {
             try {
                 // 하나씩 순서대로 확인한다는 가정하에
                 // 제일 최신인 튜플을 가져온다
-                status = inboundOrderMapper.findInoundOrderStatus();
+                //status = inboundOrderMapper.findInoundOrderStatus();
 
                 if(status.equals("check"))
                 {
                     //쿼리는 짜서 넣어야될 정보를 Dto에 넣고, 테이블에 정보를 넣는다
                     // 그렇게 해야 다른 변수를 안써도 된다
                     //check된 것중에 제일 최신인 튜플의 발주번호, 제조사번호
-                    outBoundNo= inboundOrderMapper.findoutBoundNo();
+                    //outBoundNo= inboundOrderMapper.findoutBoundNo();
 
                 }
                 Thread.sleep(1000);
