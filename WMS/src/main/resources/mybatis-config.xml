@@ -18,9 +18,9 @@
             <dataSource type="POOLED">
                 <property name="driver" value="com.mysql.cj.jdbc.Driver"/>
                 <!--아직 menudb같은 공간을 만들지 않아 3306/스키마 이름을 써야 합니다-->
-                <property name="url" value="jdbc:mysql://techbrew4.iptime.org:3306/happyhourdb"/>
-                <property name="username" value="hhdb"/>
-                <property name="password" value="hhdb"/>
+                <property name="url" value="jdbc:mysql://localhost:3306/happyhourdb"/>
+                <property name="username" value="sh"/>
+                <property name="password" value="sh"/>
             </dataSource>
         </environment>
     </environments>
@@ -30,6 +30,7 @@
         <!--<mapper resource="sql/menu/menu-mapper.xml"/>
         <mapper resource="sql/category/category-mapper.xml"/>
         <mapper resource="sql/order/order-mapper.xml"/>-->
-        <mapper resource="inboundorder-mapper.xml"/>
+        <mapper resource="sql/inboundOrder/inboundorder-mapper.xml"/>
+        <mapper resource="sql/inboundOrder/receiptproductlog-mapper.xml"/>
     </mappers>
 </configuration>

@@ -1,3 +1,16 @@
+
+
+select *
+from receipt_log join receipt_product rp on receipt_log.receipt_no = rp.receipt_no;
+
+select i.inbound_no,product_name, amount,date,inbound_status
+from inbound_product join inbound i on inbound_product.inbound_no = i.inbound_no
+join product p on inbound_product.product_no = p.product_no
+order by date desc ;
+
+select *
+from product;
+
 drop table if exists receipt_product cascade;
 drop table if exists receipt_log cascade;
 drop table if exists dispatch_product cascade;

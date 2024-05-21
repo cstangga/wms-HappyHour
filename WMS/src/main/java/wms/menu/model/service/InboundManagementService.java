@@ -3,23 +3,35 @@ package wms.menu.model.service;
 import org.apache.ibatis.session.SqlSession;
 import wms.common.ErrorView;
 import wms.menu.model.dao.InboundOrderMapper;
+import wms.menu.model.dao.ReceiptProductLogMapper;
 import wms.menu.model.dto.InboundOrderDto;
 import wms.menu.model.dto.InboundOrderListDto;
+import wms.menu.model.dto.ReceiptProductLogDto;
+
 
 import java.util.List;
 
 import static wms.common.MyBatisTemplate.getSqlSession;
 
 public class InboundManagementService {
-    Thread checkStatus= new InboundcheckStatus();
+    public List<InboundOrderListDto> inboundOrderAbleList() {
+        // 주문 가능한 리스트 가져와서 콘트롤러로 반환해
+        SqlSession sqlSession=getSqlSession();
+        InboundOrderMapper inboundOrderMapper=sqlSession.getMapper(InboundOrderMapper.class);
+        List<InboundOrderListDto> inboundOrderListDtoList=inboundOrderMapper.findAbleOrderMenu();
+        return inboundOrderListDtoList;
 
+    }
 
     //
+
     public List<InboundOrderListDto> inboundOrderList()
     {
         SqlSession sqlSession=getSqlSession();
+
         InboundOrderMapper inboundOrderMapper =sqlSession.getMapper(InboundOrderMapper.class);
-        List<InboundOrderListDto> inboundOrderList= inboundOrderMapper.findAllInboundOrderList();
+        List<InboundOrderListDto> inboundOrderList= inboundOrderMapper.findinboundOrderList();
+
         return inboundOrderList;
     }
 
@@ -40,7 +52,7 @@ public class InboundManagementService {
         inboundOrderDto.setProductName(inboundOrderMapper.findProductName(inboundOrderDto.getProductNo()));
 
         //cargo_space
-        inboundOrderDto.setCargo_space(inboundOrderMapper.findCargoSpace(categoryCode));
+        inboundOrderDto.setCargo_space(inboundOrderMapper.findCargoSpace(inboundOrderDto.getProductNo()));
 
         //제조사 번호 manufacturer, 상품넘버로 제조사번호를 얻는다
         inboundOrderDto.setManufacturer(inboundOrderMapper.findManufacturer(inboundOrderDto.getProductNo()));
@@ -66,58 +78,97 @@ public class InboundManagementService {
                 sqlSession.close();
         }
     }
-
     // 이제 발주 확인까지 됐으니 발주리스트에 넣어야 한다
-    public void insertInbound(InboundOrderDto inboundOrderDto) {
-        int inboundNo;
+
+    public ReceiptProductLogDto insertInbound(InboundOrderDto inboundOrderDto, String status) {
+
+        ReceiptProductLogDto receiptProductLogDto = new ReceiptProductLogDto();
+        int result;
+
         //1. 발주 inbound 테이블
         //2. 발주 상품번호 inbound_product
         //3. 입고 상품 receipt_product
         //4. 입고 기록 receipt_log 삽입 해야됨
         SqlSession sqlSession=getSqlSession();
-        InboundOrderMapper inboundOrderMapper =getSqlSession().getMapper(InboundOrderMapper.class);
+        InboundOrderMapper inboundOrderMapper =sqlSession.getMapper(InboundOrderMapper.class);
 
-        //1. 발주 inbound 테이블(제조사번호,
-        inboundOrderMapper.insertInboundOrder(inboundOrderDto.getManufacturer(),"발주확인");
-        // inboundNo=inboundOrderListMapper.findInboundNo(특정 값) 발주번호를 알아야한다
+        try {
+            //1. 발주 inbound 테이블(제조사번호, 상태)
+            inboundOrderDto.setInboundStatus(status);
+            inboundOrderMapper.
+                    insertInboundOrder(
+                            inboundOrderDto
+                    );
 
-        //2. 발주 상품번호 inbound_product(발주번호, 상품번호, 수량)
-        //inboundOrderListMapper.insertInboundProduct(발주번호, 상품번호, 수량)
+            //2. 발주 상품번호 테이블 inbound_product(상품번호, 수량)
+            inboundOrderMapper.insertInboundProduct(
+                    inboundOrderDto
+            );
 
-        //3. 입고 상품 receipt_product(입고번호, 발주번호, 상품번호, 수량, 적재)
+            sqlSession.commit();
 
-        //4. 입고 기록 receipt_log(입고번호, 일자)
+            if(status.equals("completed"))
+            {
+                // 발주완료로 처리를 했으니 바로 입고기록, 입고상품 테이블을 입력한데
+
+                // autoincrement키가 있으니 따로 속성 안만들고 인바운드에 들어간 객체의 키값을 쓰면 된다
+                // 입고 상품테이블, 입고 기록 테이블 속성을 가진 객체
+                receiptProductLogDto.setInboundNo(inboundOrderDto.getInboundNo()); // 발주 번호 주고
+                receiptProductLogDto.setProductNo(inboundOrderDto.getProductNo()); // 상품 번호
+                receiptProductLogDto.setAmount(inboundOrderDto.getAmount()); // 수량
+                receiptProductLogDto.setCargoSpace(inboundOrderDto.getCargo_space()); // cargo_space
+
+                return receiptProductLogDto;
+            }
+            return receiptProductLogDto;
+
+        }catch (Exception e)
+        {
+            throw new RuntimeException(e);
+        }
+        finally {
+            sqlSession.close();
+        }
 
     }
-    static class InboundcheckStatus extends Thread
+
+    public int insertReceiptProductLog(ReceiptProductLogDto receiptProductLogDto)
     {
-        String status;
         SqlSession sqlSession=getSqlSession();
-        InboundOrderMapper inboundOrderMapper =getSqlSession().getMapper(InboundOrderMapper.class);
-        InboundOrderListDto inboundOrderListDto=new InboundOrderListDto();
-        int receiptNo;
-        int outBoundNo;
+        ReceiptProductLogMapper receiptProductLogMapper=sqlSession.getMapper(ReceiptProductLogMapper.class);
+        int result;
 
-        @Override
-        public void run() {
-            try {
-                // 하나씩 순서대로 확인한다는 가정하에
-                // 제일 최신인 튜플을 가져온다
-                //status = inboundOrderMapper.findInoundOrderStatus();
+        try {
+            //3. 입고 기록 receipt_log(입고번호, 일자)
+            // ReceiptLog 테이블에 입력
+            // receipt_log를 먼저 해야지 auto_increment 값을 받아와야 함
+            receiptProductLogMapper.insertReceiptLog(receiptProductLogDto);
 
-                if(status.equals("check"))
-                {
-                    //쿼리는 짜서 넣어야될 정보를 Dto에 넣고, 테이블에 정보를 넣는다
-                    // 그렇게 해야 다른 변수를 안써도 된다
-                    //check된 것중에 제일 최신인 튜플의 발주번호, 제조사번호
-                    //outBoundNo= inboundOrderMapper.findoutBoundNo();
+            //4. 입고 상품 테이블 receipt_product(입고번호, 발주번호, 상품번호, 수량, 적재)
+            //ReceiptProduct 테이블에 입력
+            result=receiptProductLogMapper.insertReceiptProduct(receiptProductLogDto);
 
-                }
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            sqlSession.commit();
 
+            return result;
+
+        }catch (Exception e)
+        {
+            throw new RuntimeException(e);
         }
+        finally {
+            sqlSession.close();
+        }
+
+
+
+    }
+
+    public int checkInputInfor(int productNo, int inboundQuantity) {
+        if(productNo>60000 && productNo<60021) {
+            if (inboundQuantity > 0)
+                return 1;
+        }
+        return 0;
     }
 }

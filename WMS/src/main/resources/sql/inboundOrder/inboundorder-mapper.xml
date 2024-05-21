@@ -3,13 +3,27 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="wms.menu.model.dao.InboundOrderMapper">
-    <select id="findAllInboundOrderList" resultType="wms.menu.model.dto.InboundOrderListDto">
+    <select id="findAbleOrderMenu" resultType="wms.menu.model.dto.InboundOrderListDto">
         select
-        product.product_no, product_name , inbound_quantity , manufacturer_name , phone,address
+        product.product_no,
+        product_name ,
+        inbound_quantity quantity,
+        manufacturer_name ,
+        phone,
+        address manufacturer_address
         from product join
             inbound_orderable on product.product_no = inbound_orderable.product_no
         join
-            manufacturer on product.manufacturer_no = manufacturer.manufacturer_no;
+            manufacturer on product.manufacturer_no = manufacturer.manufacturer_no
+    </select>
+    <select id="findinboundOrderList" resultType="wms.menu.model.dto.InboundOrderListDto">
+        select
+            i.inbound_no,product_name, amount,date,inbound_status
+        from
+            inbound_product join inbound i on inbound_product.inbound_no = i.inbound_no
+        join
+            product p on inbound_product.product_no = p.product_no
+        order by date desc
     </select>
 
     <select id="findProductName" resultType="String">
@@ -18,7 +32,7 @@
         from
             product
         where
-            product_no = #{productNo};
+            product_no = #{productNo}
     </select>
 
 
@@ -35,31 +49,50 @@
     </select>
 
     <select id="findSumAmount" resultType="Integer">
-        select  sum(amount)
-        from inventory inven join product p on inven.product_no = p.product_no
-        join warehouse_section sec on inven.section_no = sec.section_no
-        join warehouse_zone zone on sec.section_no = zone.section_no
-        where p.category_no = #{categoryNo}
-        group by sec.section_no,cargo_space;
+        select sum(amount)
+        from
+            inventory inven
+            join warehouse_section ws on inven.section_no = ws.section_no
+        join
+            warehouse_zone wz on ws.section_no = wz.section_no
+        where
+            category_no = #{categoryNo}
+        group by
+            ws.section_no
     </select>
 
     <select id="findCargoSpace" resultType="Integer">
-        select  cargo_space
-        from inventory inven join product p on inven.product_no = p.product_no
-        join warehouse_section sec on inven.section_no = sec.section_no
-        join warehouse_zone zone on sec.section_no = zone.section_no
-        where p.category_no = #{categoryNo}
-        group by sec.section_no,cargo_space;
+        select category_no
+        from product
+        where product_no=#{productNo}
     </select>
 
     <select id="findMaxAmount" resultType="Integer">
-        select  count(distinct zone_no)*1000
-        from inventory inven join product p on inven.product_no = p.product_no
-        join warehouse_section sec on inven.section_no = sec.section_no
-        join warehouse_zone zone on sec.section_no = zone.section_no
-        where p.category_no = #{categoryNo}
-        group by sec.section_no,cargo_space;
+        select count(distinct zone_no) * 1000
+        from
+            inventory inven
+             join warehouse_section ws on inven.section_no = ws.section_no
+        join warehouse_zone wz on ws.section_no = wz.section_no
+        where
+            category_no= #{categoryNo}
+        group by
+            ws.section_no
+
     </select>
+
+    <insert id="insertInboundOrder" useGeneratedKeys="true"
+            keyProperty="inboundNo">
+        insert into
+        inbound (manufacturer_no, inbound_status )
+        values (#{manufacturer}, #{inboundStatus}
+        )
+    </insert>
+
+    <insert id="insertInboundProduct" >
+        insert into inbound_product (inbound_no, product_no, amount)
+        values (#{inboundNo},#{productNo},#{amount})
+    </insert>
+
 
 
 </mapper>
